@@ -1,0 +1,75 @@
+import random 
+import cv2
+class Alteration:
+    def __init__(self, size=20):
+      self.size = size
+    def shift_colour(self, image, x, y):
+        blue, green, red = image[int(y), int(x)]
+        colour = blue, green, red
+        shift_colour = []
+
+        for value in colour:
+            amount = random.randint(20, 40)
+            if value > 215:
+                shift = int(value) - amount
+            elif value < 40:
+                shift = int(value) + amount
+            else:
+                if random.choice([True, False]):
+                    shift = int(value) + amount
+                else:
+                    shift = int(value) - amount
+            shift_colour.append(max(0, min(255,  shift)))
+    
+        return tuple(shift_colour)
+
+class Circle(Alteration):
+    def apply(self, image, x, y):
+        colour = self.shift_colour(image, x, y)
+        cv2.circle(image, (int(x), int(y)), self.size, colour, -1)
+
+class Rectangle(Alteration):
+    def apply(self, image, x, y):
+        colour = self.shift_colour(image, x, y)
+        x1, y1 = x - self.size, y - self.size
+        x2, y2 = x + self.size, y + self.size
+        cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), colour, -1)
+        
+      
+class Colour(Alteration):
+    def apply (self, image, x, y):
+        colour = self.shift_colour(image, x, y)
+        for i in range(-self.size, self.size):
+            for j in range(-self.size, self.size):
+                if 0 <= y+i < image.shape[0] and 0 <= x+j < image.shape[1]:
+                    image[y+i, x+j] =  colour
+
+class Modifications:
+    def __init__(self):
+         self.coordinates = []
+         self.found = []
+         self.methods = [Circle(), Rectangle(), Colour()] 
+
+    def changes(self, cv_image):
+        variation = cv_image.copy()
+        self.coordinates = []
+        height, width, _ = variation.shape
+        rows = list(range(10))
+        used_rows = random.sample(rows, 5)
+        number_rows = width//10
+
+        for row_index in used_rows:
+            x_first = (row_index*number_rows)+30
+            x_last = ((row_index + 1) * number_rows)
+            if x_first >= x_last: x_last = x_first + 1
+        
+            x = random.randint(x_first, x_last)
+            y = random.randint(30, height-30)
+        
+            self.coordinates.append((x, y))
+            alt_tool = random.choice(self.methods)
+            alt_tool.apply(variation, x, y)
+ 
+        self.found = [False]*5
+        self.current_modified = variation.copy()
+        return variation
