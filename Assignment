@@ -1,0 +1,22 @@
+import tkinter as tk
+ 
+class Program_Interface(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("DANEXT60_Assignment3_Spot the Difference")
+        self.geometry('1000x1000')
+        self.resizable(True, True)
+       
+        but1 = tk.Button(self,
+                        text = "Upload image",
+                        )
+        but2 = tk.Button(self,
+                        text = "Reveal differences",
+                        )
+       
+        but1.place(relx=0.5, y=100, x=-25, anchor = 'e')
+        but2.place(relx=0.5, y=100, x=25, anchor = 'w')
+ 
+if __name__ == "__main__":
+    software = Program_Interface()
+    software.mainloop()
