@@ -1,23 +1,163 @@
 import tkinter as tk
+from tkinter import filedialog, messagebox
+import random 
+import cv2
+
+class Alteration:
+    def __init__(self, size=20):
+      self.size = size
+    def shift_colour(self, image, x, y):
+        blue, green, red = image[int(y), int(x)]
+        colour = blue, green, red
+        shift_colour = []
+
+        for value in colour:
+            amount = random.randint(20, 40)
+            if value > 215:
+                shift = int(value) - amount
+            elif value < 40:
+                shift = int(value) + amount
+            else:
+                if random.choice([True, False]):
+                    shift = int(value) + amount
+                else:
+                    shift = int(value) - amount
+            shift_colour.append(max(0, min(255,  shift)))
+    
+        return tuple(shift_colour)
+
+class Circle(Alteration):
+    def apply(self, image, x, y):
+        colour = self.shift_colour(image, x, y)
+        cv2.circle(image, (int(x), int(y)), self.size, colour, -1)
+
+class Rectangle(Alteration):
+    def apply(self, image, x, y):
+        colour = self.shift_colour(image, x, y)
+        x1, y1 = x - self.size, y - self.size
+        x2, y2 = x + self.size, y + self.size
+        cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), colour, -1)
+    
+class Colour(Alteration):
+    def apply (self, image, x, y):
+        colour = self.shift_colour(image, x, y)
+        for i in range(-self.size, self.size):
+            for j in range(-self.size, self.size):
+                if 0 <= y+i < image.shape[0] and 0 <= x+j < image.shape[1]:
+                    image[y+i, x+j] =  colour
+                   
+class Modifications:
+    def __init__(self):
+         self.coordinates = []
+         self.found = []
+         self.methods = [Circle(), Rectangle(), Colour()] 
+
+    def changes(self, cv_image):
+        variation = cv_image.copy()
+        self.coordinates = []
+        height, width, _ = variation.shape
+        rows = list(range(10))
+        used_rows = random.sample(rows, 5)
+        number_rows = width//10
+
+        for row_index in used_rows:
+            x_first = (row_index*number_rows)+30
+            x_last = ((row_index + 1) * number_rows)
+            if x_first >= x_last: x_last = x_first + 1
+        
+            x = random.randint(x_first, x_last)
+            y = random.randint(30, height-30)
+        
+            self.coordinates.append((x, y))
+            alt_tool = random.choice(self.methods)
+            alt_tool.apply(variation, x, y)
  
+        self.found = [False]*5
+        self.current_modified = variation.copy()
+        return variation     
+
+class Image_Control:
+    def __init__(self):
+        self.upload_image = None
+        self.file = None
+        self.img = None
+        self.scaling = 1
+        self.buffer_x = 0
+        self.buffer_y = 0
+
+    def upload(self):
+        self.file = filedialog.askopenfilename(
+            filetypes=[("Image Files", "*.jpg *.png *.bmp *")]
+        )
+        if self.file:
+            img= cv2.imread(self.file)
+            if img is not None:
+                self.upload_image = img
+        return self.file
+    
+    def size(self, image, max_width = 600, max_height = 500):
+        height, width = image.shape[:2]
+        self.scaling = min(max_width/width, max_height/height)
+        resized_width = int(width*self.scaling)
+        resized_height = int(height*self.scaling)
+        self.buffer_x = (max_width - resized_width) // 2
+        self.buffer_y = (max_height - resized_height) // 2
+        return cv2.resize(image, (resized_width, resized_height), interpolation = cv2.INTER_AREA)
+    
 class Program_Interface(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("DANEXT60_Assignment3_Spot the Difference")
-        self.geometry('1000x1000')
-        self.resizable(True, True)
+        self.geometry('1400x800')
+        self.resizable(True, True) 
+        self.image = Image_Control()
+        self.diff = Modifications()
+        self.total_found = 0
+        self.mistakes = 0
+        self.label1 = tk.Label(self, text = "Upload an image to begin", font = ("Times New Roman", 18))
+        self.label1.place(relx=0.5, y=50, anchor='center')
+        self.but1 = tk.Button(self, text = "Upload image",command=self.run_upload_image, font = ("Times New Roman", 14) )         
+        self.but2 = tk.Button(self, text = "Reveal differences",command=self.reveal,font = ("Times New Roman", 14))              
+        self.but1.place(relx=0.5, y=100, x=-25, anchor = 'e')   
+        self.but2.place(relx=0.5, y=100, x=25, anchor = 'w')
+        self.original_image = tk.Label(self)
+        self.original_image.place(x=40, y=150, width = 600,height = 500)               
+        self.modified_image = tk.Label(self)
+        self.modified_image.place(x=740,  y=150,width = 600,height = 500)
+        self.modified_image.bind("<Button-1>")
+
+    def update_display(self, all=False):
+        if self.image.upload_image is None:
+            return
+        display_original = self.image.upload_image.copy()
+        display_modified = self.diff.current_modified.copy()
        
-        but1 = tk.Button(self,
-                        text = "Upload image",
-                        )
-        but2 = tk.Button(self,
-                        text = "Reveal differences",
-                        )
-       
-        but1.place(relx=0.5, y=100, x=-25, anchor = 'e')
-        but2.place(relx=0.5, y=100, x=25, anchor = 'w')
- 
+        resized_original = self.image.size(display_original)
+        resized_modified = self.image.size(display_modified)
+
+        cv2.imwrite('picture.png', resized_original)
+        cv2.imwrite('modified_picture.png', resized_modified)
+
+        self.show_original_image = tk.PhotoImage(file='picture.png')
+        self.show_modified_image = tk.PhotoImage(file='modified_picture.png') 
+
+        self.original_image.config(image=self.show_original_image)
+        self.modified_image.config(image=self.show_modified_image)
+
+    def run_upload_image(self):
+            path = self.image.upload()
+            if path and self.image.upload_image is not None:
+                self.mistakes = 0
+                self.diff.changes(self.image.upload_image)
+                self.update_display()
+    
+    def reveal(self):
+            if not self.diff.coordinates:
+                messagebox.showwarning("Error","Please upload an image before revealing differences")
+            else:
+                self.update_display(all=True) 
 if __name__ == "__main__":
     software = Program_Interface()
     software.mainloop()
+
 
