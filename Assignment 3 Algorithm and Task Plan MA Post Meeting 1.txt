@@ -1,0 +1,29 @@
+Make sure OpenCV and Tkinter are imported.
+Check for further Import file needs.
+
+Name App - Spot the Differences or Similar?
+Select Image Differences - Ideas suggested Colour Shift as per Assignment + Blur + Missing Object
+
+
+TASK 1 - Define Base Classes for Codebase
+
+CLASS - Alteration
+Encapsulation of differences to images. (Need to choose differences to implement.) 
+Colour Shift listed in Assignment, Gemini AI recommended also Blur + Missing Object.
+
+CLASS - ImageControl
+Encapsulate actions in Open CV as it must do all image manipulation.
+	Introduce 5 differences, need to change the 5 randomly each time.
+	Need to create clone
+	Need to convert Open CV image to Tkinter format
+	
+CLASS Program Interface 
+Encapsulate the actions in Tkinter.
+	Enable user to select image by a button from disk - JPB PNG or BMP
+	Display Original and Cloned Images side by side.
+	Enable the app to know when the user is clicking in reasonable proximity within cloned image only.
+	When user clicks correctly a red circle must draw around the difference found - both original and clone.
+	Display unfound differences and number of mistakes to max no of 3 in screen dialogue box or similar.
+	When all 5 differences found player is notified by pop-up dialogue or similar.
+	When player makes 3 mistakes player is notified game has ended and option to load new image is offered.
+	A Reveal button is required to identify remaining unfound differences and marked with blue circle.
