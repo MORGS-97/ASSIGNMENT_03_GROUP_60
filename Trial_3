@@ -1,0 +1,241 @@
+"""import tkinter as tk
+from tkinter import filedialog, messagebox
+import cv2
+import random
+from PIL import Image, ImageTk
+
+# --- 1. POLYMORPHISM IMPLEMENTATION ---
+# Base Class
+class Alteration:
+    def __init__(self, size=5): # Size of 5 acts as a radius (total width 10)
+        self.size = size
+
+    def shift_colour(self, image, x, y):
+        # Grabs the pixel color at the center point
+        blue, green, red = image[int(y), int(x)]
+        colour = [blue, green, red]
+        shift_colour = []
+
+        for value in colour:
+            amount = random.randint(20, 40)
+            if value > 215:
+                shift = int(value) - amount
+            elif value < 40:
+                shift = int(value) + amount
+            else:
+                if random.choice([True, False]):
+                    shift = int(value) + amount
+                else:
+                    shift = int(value) - amount
+            shift_colour.append(max(0, min(255, shift)))
+    
+        return (int(shift_colour[0]), int(shift_colour[1]), int(shift_colour[2]))
+
+# Child Class 1
+class Circle(Alteration):
+    def apply(self, image, x, y):
+        colour = self.shift_colour(image, x, y)
+        cv2.circle(image, (int(x), int(y)), self.size, colour, -1)
+
+# Child Class 2
+class Rectangle(Alteration):
+    def apply(self, image, x, y):
+        colour = self.shift_colour(image, x, y)
+        x1, y1 = x - self.size, y - self.size
+        x2, y2 = x + self.size, y + self.size
+        cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), colour, -1)
+        
+# Child Class 3
+class Colour(Alteration):
+    def apply(self, image, x, y):
+        colour = self.shift_colour(image, x, y)
+        for i in range(-self.size, self.size):
+            for j in range(-self.size, self.size):
+                if 0 <= y+i < image.shape[0] and 0 <= x+j < image.shape[1]:
+                    image[int(y)+i, int(x)+j] = colour
+
+
+# --- 2. THE ENGINE (Inherits nothing, manages generation) ---
+class Random_Photo_Changes:
+    def __init__(self):
+        self.cv_photo_original = None
+        self.cv_photo_modified = None
+        self.differences = []
+        # Instantiate our polymorphic tools!
+        self.methods = [Circle(), Rectangle(), Colour()]
+
+    def generate_differences(self):
+        self.cv_photo_modified = self.cv_photo_original.copy()
+        self.differences.clear() 
+        
+        radius = 30 # Defines the size of the shapes
+        diff_width = radius * 2 
+        attempts = 0 
+
+        while len(self.differences) < 5 and attempts < 200:
+            attempts += 1
+            # Generate center points
+            cx = random.randint(radius, 750 - radius)
+            cy = random.randint(radius, 750 - radius)
+            
+            # Convert center points to top-left bounding boxes for Tkinter collision
+            top_x = cx - radius
+            top_y = cy - radius
+            
+            # --- OVERLAP CHECK LOGIC ---
+            is_overlapping = False
+            for (dx, dy, dw, dh) in self.differences:
+                if top_x < dx + dw and top_x + diff_width > dx and top_y < dy + dh and top_y + diff_width > dy:
+                    is_overlapping = True
+                    break 
+            
+            if is_overlapping:
+                continue 
+            
+            # --- APPLY POLYMORPHISM ---
+            # Randomly select a tool and apply it without needing to know which shape it is
+            alt_tool = random.choice(self.methods)
+            alt_tool.apply(self.cv_photo_modified, cx, cy)
+
+            # Save the bounding box for Tkinter
+            self.differences.append((top_x, top_y, diff_width, diff_width))
+
+
+# --- 3. THE DATA MANAGER ---
+class Photo_Image(Random_Photo_Changes):
+    def __init__(self):
+        super().__init__()
+        self.tk_image_left = None
+        self.tk_image_right = None
+
+    def upload_photo(self, canvas_left, canvas_right): 
+        file_path = filedialog.askopenfilename(
+            title="Select a Photo",
+            filetypes=[("Image Files", "*.jpg *.png *.bmp")]
+        )
+        if not file_path: return
+
+        raw_image = cv2.imread(file_path)
+        if raw_image is None: return
+        self.cv_photo_original = cv2.resize(raw_image, (750, 750))
+
+        rgb_original = cv2.cvtColor(self.cv_photo_original, cv2.COLOR_BGR2RGB)
+        self.tk_image_left = ImageTk.PhotoImage(Image.fromarray(rgb_original))
+        canvas_left.create_image(0, 0, anchor=tk.NW, image=self.tk_image_left)
+
+        self.generate_differences()
+
+        rgb_modified = cv2.cvtColor(self.cv_photo_modified, cv2.COLOR_BGR2RGB)
+        self.tk_image_right = ImageTk.PhotoImage(Image.fromarray(rgb_modified))
+        canvas_right.create_image(0, 0, anchor=tk.NW, image=self.tk_image_right)
+
+
+# --- 4. THE DASHBOARD ---
+class Game_Interface:
+    def __init__(self, Frame):
+        self.Frame = Frame
+        self.Frame.title("DAN_EXT_60_Assignment3_Spot the Difference - Final Prototype")
+        self.Frame.geometry("1800x1200") 
+        self.Frame.resizable(True, True) 
+
+        self.image_manager = Photo_Image()
+
+        self.remaining = 5
+        self.mistakes = 0
+
+        controls_Frame = tk.Frame(self.Frame)
+        controls_Frame.pack(side=tk.TOP, fill=tk.X, pady=10)
+
+        self.load_btn = tk.Button(controls_Frame, text="Load New Image To Begin", command=self.load_image, font=("Times New Roman", 18, "bold"))
+        self.load_btn.pack(side=tk.LEFT, padx=50)
+
+        self.reveal_btn = tk.Button(controls_Frame, text="Reveal Differences", command=self.reveal, font=("Times New Roman", 18, "bold"))
+        self.reveal_btn.pack(side=tk.LEFT, padx=100)
+
+        self.score_label = tk.Label(controls_Frame, text="Remaining: 5 | Mistakes: 0/3", font=("Arial", 18, "bold"))
+        self.score_label.pack(side=tk.RIGHT, padx=100)
+
+        image_frame = tk.Frame(self.Frame)
+        image_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.canvas_left = tk.Canvas(image_frame, bg="gray", width=750, height=750)
+        self.canvas_left.pack(side=tk.LEFT, padx=10, pady=10, expand=True)
+
+        self.canvas_right = tk.Canvas(image_frame, bg="lightgray", width=750, height=750)
+        self.canvas_right.pack(side=tk.RIGHT, padx=10, pady=10, expand=True)
+
+        self.canvas_right.bind("<Button-1>", self.on_image_click)
+
+    def update_score_display(self):
+        self.score_label.config(text=f"Remaining: {self.remaining} | Mistakes: {self.mistakes}/3")
+
+    def load_image(self):
+        self.remaining = 5
+        self.mistakes = 0
+        self.update_score_display()
+        
+        self.canvas_left.delete("all")
+        self.canvas_right.delete("all")
+
+        self.image_manager.upload_photo(self.canvas_left, self.canvas_right)
+
+    def reveal(self):
+        if self.image_manager.cv_photo_original is None:
+            messagebox.showinfo("Wait!", "Please load an image first.")
+            return
+            
+        if len(self.image_manager.differences) == 0:
+            messagebox.showinfo("Notice", "No differences left to reveal!")
+            return
+
+        for diff in self.image_manager.differences:
+            dx, dy, dw, dh = diff
+            self.canvas_left.create_oval(dx, dy, dx+dw, dy+dh, outline="blue", width=3)
+            self.canvas_right.create_oval(dx, dy, dx+dw, dy+dh, outline="blue", width=3)
+
+        messagebox.showinfo("Revealed", "All remaining differences have been highlighted in blue. Load a new image to play again!")
+        
+        self.image_manager.differences.clear()
+        self.remaining = 0
+        self.update_score_display()
+
+    def on_image_click(self, event):
+        if self.image_manager.cv_photo_original is None:
+            return 
+        
+        if self.mistakes >= 3 or self.remaining == 0:
+            messagebox.showinfo("Game Over", "Please load a new image to play again.")
+            return
+
+        click_x, click_y = event.x, event.y
+        hit_found = False
+
+        for diff in self.image_manager.differences:
+            dx, dy, dw, dh = diff
+            
+            if dx <= click_x <= dx + dw and dy <= click_y <= dy + dh:
+                hit_found = True
+                
+                self.canvas_left.create_oval(dx, dy, dx+dw, dy+dh, outline="red", width=3)
+                self.canvas_right.create_oval(dx, dy, dx+dw, dy+dh, outline="red", width=3)
+
+                self.image_manager.differences.remove(diff)
+                self.remaining -= 1
+                break 
+
+        if hit_found:
+            self.update_score_display()
+            if self.remaining == 0:
+                messagebox.showinfo("You Win!", "You found all 5 differences! Load a new image to play again.")
+        else:
+            self.mistakes += 1
+            self.update_score_display()
+            if self.mistakes >= 3:
+                messagebox.showwarning("Game Over", f"Too many mistakes! You found {5 - self.remaining} differences. Load a new image to try again.")
+
+
+if __name__ == "__main__":
+    main_window = tk.Tk()
+    app = Game_Interface(main_window)
+    main_window.mainloop()
+    """
