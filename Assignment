@@ -1,8 +1,19 @@
+'''
+HIT137 S1 2026
+Group Assignment 3
+Group name = DAN/EXT 60
+Marc Amtsberg - S368669
+Morgan Dean  - S392831
+Nick Wheatley - S389843
+Brendan Martin - S375628
+'''
+
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import cv2
 import random 
 
+#Parent class: calculates the colour shift (dependant on location between 0-255) and size for pixels 
 class Alteration:
     def __init__(self, size=20):
       self.size = size
@@ -25,7 +36,8 @@ class Alteration:
             shift_colour.append(max(0, min(255,  shift)))
     
         return tuple(shift_colour)
-
+    
+#Child class to Alterations: allocating paramters for circle shape, rectangle shape and colour
 class Circle(Alteration):
     def apply(self, image, x, y):
         colour = self.shift_colour(image, x, y)
@@ -45,7 +57,8 @@ class Colour(Alteration):
             for j in range(-self.size, self.size):
                 if 0 <= y+i < image.shape[0] and 0 <= x+j < image.shape[1]:
                     image[y+i, x+j] =  colour
-                   
+
+#Parent class: Game logic manager, stores data and creates puzzle             
 class Modifications:
     def __init__(self):
          self.coordinates = []
@@ -76,6 +89,7 @@ class Modifications:
         self.current_modified = variation.copy()
         return variation     
 
+#Parent class: Controls the image files, scaling of image and buffering
 class Image_Control:
     def __init__(self):
         self.upload_image = None
@@ -104,6 +118,7 @@ class Image_Control:
         self.buffer_y = (max_height - resized_height) // 2
         return cv2.resize(image, (resized_width, resized_height), interpolation = cv2.INTER_AREA)
 
+#Parent class: Main controller for User Interface, controls all GUI functions, interfaces, rules and visual feedback 
 class Program_Interface(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -199,4 +214,3 @@ class Program_Interface(tk.Tk):
 if __name__ == "__main__":
     software = Program_Interface()
     software.mainloop()
-
