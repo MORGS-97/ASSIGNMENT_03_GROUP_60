@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
-import random 
 import cv2
+import random 
 
 class Alteration:
     def __init__(self, size=20):
@@ -103,7 +103,7 @@ class Image_Control:
         self.buffer_x = (max_width - resized_width) // 2
         self.buffer_y = (max_height - resized_height) // 2
         return cv2.resize(image, (resized_width, resized_height), interpolation = cv2.INTER_AREA)
-    
+
 class Program_Interface(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -124,14 +124,53 @@ class Program_Interface(tk.Tk):
         self.original_image.place(x=40, y=150, width = 600,height = 500)               
         self.modified_image = tk.Label(self)
         self.modified_image.place(x=740,  y=150,width = 600,height = 500)
-        self.modified_image.bind("<Button-1>")
+                           
+        self.modified_image.bind("<Button-1>", self.clicks)
 
+    def clicks(self, event):
+        if not self.diff.coordinates or self.mistakes >= 3:
+            return
+        original_x = (event.x - self.image.buffer_x) / self.image.scaling
+        original_y = (event.y - self.image.buffer_y) / self.image.scaling
+
+        found = False
+        for i, (range_x, range_y) in enumerate(self.diff.coordinates):
+            if not self.diff.found[i]:
+                 if (range_x - 50 < original_x < range_x + 50) and \
+                    (range_y - 50 < original_y < range_y + 50): 
+                        self.diff.found[i] = True
+                        self.total_found += 1
+                        found = True
+                        break
+        if not found:
+            self.mistakes += 1
+        
+        self.update_display()
+        if all(self.diff.found):
+            messagebox.showinfo("Success", "Congratulation, All 5 differences have been found!")
+        elif self.mistakes >= 3:
+            messagebox.showerror("Game Over", "3 mistakes reached! Load new image or click Reveal.")
+   
     def update_display(self, all=False):
         if self.image.upload_image is None:
             return
+       
+        remaining = self.diff.found.count(False)
+
+        self.label1.config(text=f"Remaining: {remaining} |Total Found: {self.total_found} | Mistakes: {self.mistakes}/3")
+       
         display_original = self.image.upload_image.copy()
         display_modified = self.diff.current_modified.copy()
-       
+
+        for i, (x, y) in enumerate(self.diff.coordinates):
+            if self.diff.found[i]:
+                cv2.circle(display_original, (x, y), 60, (0, 0, 255), 5)
+                cv2.circle(display_modified, (x, y), 60, (0, 0, 255), 5)
+            elif all and not self.diff.found[i]:
+                cv2.circle(display_original, (x, y), 60, (255, 0, 0), 5)
+                cv2.circle(display_modified, (x, y), 60, (255, 0, 0), 5)
+           
+
         resized_original = self.image.size(display_original)
         resized_modified = self.image.size(display_modified)
 
@@ -156,8 +195,8 @@ class Program_Interface(tk.Tk):
                 messagebox.showwarning("Error","Please upload an image before revealing differences")
             else:
                 self.update_display(all=True) 
+              
 if __name__ == "__main__":
     software = Program_Interface()
     software.mainloop()
-
 
